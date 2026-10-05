@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>КидСити — подключение WhatsApp Business</title></head>
+<body style="font-family:sans-serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.5">
+<h1>Подключение WhatsApp Business</h1>
+<p>Внутренняя страница магазина КидСити. Подключает номер WhatsApp Business к аналитике (только чтение). Приложение WhatsApp Business на телефоне продолжит работать.</p>
+<p><button id="go" style="font-size:18px;padding:12px 20px;background:#1877f2;color:#fff;border:0;border-radius:6px;cursor:pointer">Подключить WhatsApp Business</button></p>
+<pre id="log" style="background:#f3f3f3;padding:8px;white-space:pre-wrap"></pre>
+<script>
+const APP_ID='2285666132284936';
+const CONFIG_ID=new URLSearchParams(location.search).get('config')||'';
+const HOOK='https://kidcity-wa.daverull.workers.dev/onboard';
+const log=t=>{document.getElementById('log').textContent+=t+'\n';};
+let info=null;
+function send(payload){
+  fetch(HOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+   .then(r=>r.json()).then(j=>log(payload.code?(j.ok?'✅ Готово: доступ получен. Можно закрыть страницу и написать в чат «готово».':'Ошибка ключа: '+(j.error||'?')):'Данные номера сохранены.'))
+   .catch(e=>log('Ошибка связи: '+e));
+}
+window.addEventListener('message',ev=>{
+  if(!/facebook\.com$/.test(new URL(ev.origin).hostname))return;
+  try{const d=JSON.parse(ev.data); if(d.type==='WA_EMBEDDED_SIGNUP'){info=d; log('Шаг: '+d.event); send({info:d,waba_id:d.data&&d.data.waba_id,phone_number_id:d.data&&d.data.phone_number_id});}}catch(e){}
+});
+window.fbAsyncInit=function(){FB.init({appId:APP_ID,autoLogAppEvents:true,xfbml:true,version:'v21.0'}); log('Готово к подключению.');};
+document.getElementById('go').onclick=function(){
+  if(!CONFIG_ID){log('Нет config в адресе страницы.');return;}
+  FB.login(function(resp){
+    if(resp.authResponse&&resp.authResponse.code){log('Код получен, обмениваю…'); send({code:resp.authResponse.code,info:info});}
+    else log('Окно закрыто без подключения.');
+  },{config_id:CONFIG_ID,response_type:'code',override_default_response_type:true,
+     extras:{setup:{},featureType:'whatsapp_business_app_onboarding',sessionInfoVersion:'3'}});
+};
+</script>
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
+</body></html>
